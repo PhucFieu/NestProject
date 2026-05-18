@@ -1,29 +1,45 @@
 import { Injectable } from '@nestjs/common';
-import { CreateProductDTO } from './create-product.dto';
+import { CreateProductDTO } from './create-products.dto';
+import { NotFoundException } from '@nestjs/common';
+import { UpdateProductDTO } from './update-products.dto';
+import { PrismaService } from '../prisma.service';
 @Injectable()
 export class ProductsService {
-
-  productlist: CreateProductDTO[] = [];
-  products() {
-    return this.productlist;
+constructor(private prisma: PrismaService) { }
+  async products() {
+    return this.prisma.product.findMany();
   }
-  createproduct(product: CreateProductDTO) {
-    this.productlist.push(product);
-    return this.productlist;
-  }
-  deleteproduct(id: number) {
-    this.productlist = this.productlist.filter((product: CreateProductDTO) => product.id !== id);
-  }
-  updateproduct(id: number, body: CreateProductDTO) {
-    this.productlist = this.productlist.map((product: CreateProductDTO) => 
-    {
-      if (product.id === id) {
-        return body;
-      }
-      return product;
+async createProduct(createProductDTO: CreateProductDTO) {
+  return this.prisma.product.create({
+    data: {
+      name: createProductDTO.name,
+      price: createProductDTO.price,
+    },
+  });
+}
+  async deleteProduct(id: string) {
+    return this.prisma.product.delete({
+      where: { id },
     });
-    return this.productlist;}
-  findproduct(id: number) {
-    return this.productlist.find((product : CreateProductDTO) => product.id === id);
   }
+  async updateProduct(id: string, updateProductDTO: UpdateProductDTO) {
+    await this.findProduct(id);
+    return this.prisma.product.update({
+      where: { id },
+      data: {
+        name: updateProductDTO.name,
+        price: updateProductDTO.price,
+      },
+    });
+  }
+  async findProduct(id: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id },
+    });
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+    return product;
+  }
+  
 }
