@@ -7,32 +7,44 @@ import { PrismaService } from '../prisma.service';
 export class ProductsService {
 constructor(private prisma: PrismaService) { }
   async products() {
-    return this.prisma.product.findMany();
+    const products = await this.prisma.product.findMany({
+  include: {
+    category: true,
+  },
+});
+return products.map(product => ({
+  id: product.id,
+  name: product.name,
+  price: product.price,
+  category: product.category.name,
+}));
   }
 async createProduct(createProductDTO: CreateProductDTO) {
   return this.prisma.product.create({
     data: {
       name: createProductDTO.name,
       price: createProductDTO.price,
+      categoryId: createProductDTO.categoryId,
     },
   });
 }
-  async deleteProduct(id: string) {
+  async deleteProduct(id: number) {
     return this.prisma.product.delete({
       where: { id },
     });
   }
-  async updateProduct(id: string, updateProductDTO: UpdateProductDTO) {
+  async updateProduct(id: number, updateProductDTO: UpdateProductDTO) {
     await this.findProduct(id);
     return this.prisma.product.update({
       where: { id },
       data: {
         name: updateProductDTO.name,
         price: updateProductDTO.price,
+        categoryId: updateProductDTO.categoryId,
       },
     });
   }
-  async findProduct(id: string) {
+  async findProduct(id: number) {
     const product = await this.prisma.product.findUnique({
       where: { id },
     });

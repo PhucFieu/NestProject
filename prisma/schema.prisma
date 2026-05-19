@@ -11,8 +11,15 @@ datasource db {
   provider = "postgresql"
 }
 model Product {
-  id        String   @id @default(uuid())
+  id        Int   @id @default(autoincrement())
   name      String
   price     Float
   createdAt DateTime @default(now())
+  categoryId Int
+  category Category @relation(fields: [categoryId], references: [id]) 
+}
+model Category {
+  id        Int   @id @default(autoincrement())
+  name      String   
+  products Product[]
 }
