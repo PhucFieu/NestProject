@@ -2,7 +2,6 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 // Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,16 +9,76 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
-model Product {
-  id        Int   @id @default(autoincrement())
-  name      String
-  price     Float
-  createdAt DateTime @default(now())
-  categoryId Int
-  category Category @relation(fields: [categoryId], references: [id]) 
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  fullName     String?
+  status       String   @default("ACTIVE")
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  roleId       Int
+  role         Role     @relation(fields: [roleId], references: [id])
+
+  refreshToken String?
 }
+
+model Role {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // Ví dụ: "ADMIN", "USER", "MANAGER"
+  
+  // Mối quan hệ 1-N: Một Role có thể gán cho nhiều User
+  users User[]
+}
+
+model Product {
+  id         Int       @id @default(autoincrement())
+  name       String
+  sku        String    @unique
+  price      Float
+  status     String    @default("ACTIVE")
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  categoryId Int
+  category   Category  @relation(fields: [categoryId], references: [id])
+
+  inventory  Inventory?
+}
+
 model Category {
-  id        Int   @id @default(autoincrement())
-  name      String   
-  products Product[]
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  slug      String    @unique
+  isActive  Boolean   @default(true)
+
+  products  Product[]
+}
+
+model Inventory {
+  id               Int      @id @default(autoincrement())
+
+  quantity         Int      @default(0)
+  reservedQuantity Int      @default(0)
+
+  updatedAt        DateTime @updatedAt
+
+  productId        Int      @unique
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+
+  actorId    Int
+  action     String
+
+  entityType String
+  entityId   Int
+
+  metadata   Json?
+
+  createdAt  DateTime @default(now())
 }

@@ -1,18 +1,37 @@
 import { Injectable } from '@nestjs/common';
 import { NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { CreateCategoryDTO } from './create-category.dto';
-import { UpdateCategoryDTO } from './update-category.dto';
+import { CreateCategoryDTO } from './dto/create-category.dto';
+import { UpdateCategoryDTO } from './dto/update-category.dto';
 @Injectable()
 export class CategoryService {
   constructor(private prisma: PrismaService) {}
    async categories() {
-      return this.prisma.category.findMany();
+      return this.prisma.category.findMany(
+        {
+          include: {
+            products: {
+              select: {
+                name: true,
+                price: true,
+             }
+           }
+          },
+        }
+      );
     }
   async createCategory(createCategoryDTO: CreateCategoryDTO) {
+    const slug = createCategoryDTO.name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Khử dấu tiếng Việt
+    .replace(/[^\w\s-]/g, '')       // Xóa ký tự đặc biệt
+    .replace(/[\s_]+/g, '-')        // Thay khoảng trắng bằng dấu -
+    .trim();
     return this.prisma.category.create({
       data: {
-        name: createCategoryDTO.name,
+       name: createCategoryDTO.name,
+      slug: createCategoryDTO.slug || slug,
       },
     });
   }
