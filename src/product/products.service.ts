@@ -5,48 +5,44 @@ import { UpdateProductDTO } from './dto/update-products.dto';
 import { PrismaService } from '../prisma.service';
 @Injectable()
 export class ProductsService {
-constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) { }
   async products() {
     const products = await this.prisma.product.findMany({
-  include: {
-    category: true,
-  },
-});
-return products.map(product => ({
-  id: product.id,
-  name: product.name,
-  price: product.price,
-  category: product.category.name,
-}));
+      include: {
+        category: true,
+      },
+    });
+    return products.map(product => ({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      category: product.category.name,
+    }));
   }
-async createProduct(createProductDto: CreateProductDTO) {
-    // 1. Kiểm tra xem danh mục (Category) có tồn tại thực sự không
+  async createProduct(createProductDto: CreateProductDTO, user: any) {
     const categoryExists = await this.prisma.category.findUnique({
       where: { id: createProductDto.categoryId },
     });
-    
+
     if (!categoryExists) {
       throw new NotFoundException(`Danh mục với ID ${createProductDto.categoryId} không tồn tại.`);
     }
 
-    // 2. Kiểm tra trùng mã SKU (Stock Keeping Unit) - Mã định danh duy nhất cho sản phẩm
     const skuExists = await this.prisma.product.findUnique({
-      where: {sku: createProductDto.sku } as any,
+      where: { sku: createProductDto.sku } as any,
     });
 
     if (skuExists) {
       throw new ConflictException(`Mã SKU "${createProductDto.sku}" đã được sử dụng cho sản phẩm khác.`);
     }
 
-    // 3. Tạo sản phẩm mới trong Database kèm theo bản ghi Inventory (Kho hàng) mặc định
-    return this.prisma.product.create({
+    const product = await this.prisma.product.create({
       data: {
         name: createProductDto.name,
         sku: createProductDto.sku,
         price: createProductDto.price,
         status: createProductDto.status || 'ACTIVE',
         categoryId: createProductDto.categoryId,
-        // (Tùy chọn) Tự động tạo luôn bản ghi kho hàng bằng 0 cho sản phẩm này
         inventory: {
           create: {
             quantity: 0,
@@ -54,25 +50,46 @@ async createProduct(createProductDto: CreateProductDTO) {
           }
         }
       },
-      // Trả về kèm theo thông tin category và inventory để client tiện hiển thị
       include: {
         category: true,
         inventory: true,
       }
     });
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: user.sub,
+        action: 'CREATE_PRODUCT',
+        entityType: 'Product',
+        entityId: product.id,
+        metadata: {
+          productName: product.name,
+          sku: product.sku,
+        },
+      },
+    });
+    return product;
   }
-  async deleteProduct(id: number) {
+  async deleteProduct(id: number, user: any) {
     await this.findProduct(id);
-    return this.prisma.product.delete({
+    const product = await this.prisma.product.delete({
       where: { id },
     });
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: user.sub,
+        action: 'DELETE_PRODUCT',
+        entityType: 'Product',
+        entityId: product.id,
+      },
+    });
+    return product;
   }
-  async updateProduct(id: number, updateProductDTO: UpdateProductDTO) {
+  async updateProduct(id: number, updateProductDTO: UpdateProductDTO, user: any) {
     await this.findProduct(id);
-      if (updateProductDTO.categoryId) {
-        await this.findcategoryProducts(updateProductDTO.categoryId);
-      }
-    return this.prisma.product.update({
+    if (updateProductDTO.categoryId) {
+      await this.findcategoryProducts(updateProductDTO.categoryId);
+    }
+    const product = await this.prisma.product.update({
       where: { id },
       data: {
         name: updateProductDTO.name,
@@ -80,7 +97,17 @@ async createProduct(createProductDto: CreateProductDTO) {
         categoryId: updateProductDTO.categoryId,
       },
     });
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: user.sub,
+        action: 'UPDATE_PRODUCT',
+        entityType: 'Product',
+        entityId: product.id,
+      },
+    });
+    return product;
   }
+
   async findProduct(id: number) {
     const product = await this.prisma.product.findUnique({
       include: {
