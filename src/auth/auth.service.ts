@@ -39,11 +39,11 @@ export class AuthService {
             },
         });
         if (!user) {
-            throw new BadRequestException('Invalid user or password');
+            throw new BadRequestException('Lỗi: Không tìm thấy Email này trong DB');
         }
         const isMatchPassword = await bcrypt.compare(loginDTO.password, user.passwordHash);
         if (!isMatchPassword) {
-            throw new BadRequestException('Invalid user or password');
+            throw new BadRequestException('Lỗi: Tìm thấy Email rồi nhưng Sai Mật Khẩu');
         }
         const payload = { email: user.email, sub: user.id, role: user.role.name };
         const accessToken = this.jwtService.sign(payload);

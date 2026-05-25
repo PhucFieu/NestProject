@@ -1,6 +1,7 @@
 import { PrismaClient } from '../generated/prisma';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
+import * as bcrypt from 'bcrypt'; // Đã thêm thư viện bcrypt để tự động băm mật khẩu
 
 const connectionString =
   'postgresql://postgres:123456@localhost:5432/nestjs_product_db?schema=public';
@@ -13,9 +14,21 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  console.log('Starting seed...');
+  console.log('🔄 Starting data cleanup...');
 
+  // STAGE 0: Xóa toàn bộ dữ liệu cũ (Chú ý thứ tự: bảng Con xóa trước, bảng Cha xóa sau)
+  await prisma.auditLog.deleteMany({});
+  await prisma.inventory.deleteMany({});
   
+  await prisma.product.deleteMany({});
+  await prisma.user.deleteMany({});
+  
+  await prisma.category.deleteMany({});
+  await prisma.role.deleteMany({});
+
+  console.log('✅ Cleanup completed! Inserting new seed data...');
+
+  // STAGE 1: Seed Categories
   const phoneCategory = await prisma.category.upsert({
     where: { name: 'Phone' },
     update: {},
@@ -43,7 +56,7 @@ async function main() {
     },
   });
 
-  
+  // STAGE 2: Seed Products
   const productsData = [
     { name: 'iPhone 17', sku: 'IP17-01', price: 30000000, categoryId: phoneCategory.id },
     { name: 'Samsung S30', sku: 'SS30-01', price: 25000000, categoryId: phoneCategory.id },
@@ -63,7 +76,7 @@ async function main() {
     });
   }
 
-  
+  // STAGE 3: Seed Roles
   const adminRole = await prisma.role.upsert({
     where: { name: 'ADMIN' },
     update: {},
@@ -76,16 +89,19 @@ async function main() {
     create: { name: 'USER' },
   });
 
+  // STAGE 4: Seed Users (Tự động sinh chuỗi mã hóa chuẩn cho mật khẩu '123456')
+  const generatedPasswordHash = bcrypt.hashSync('123456', 10);
+
   const usersData = [
     {
       email: 'admin@gmail.com',
-      passwordHash: '$2b$10$EPf9kP58gS/6.L013pZ7Y.fO9WqHqE0d0G9g4q5B3mE2rGzUf.KGa', 
+      passwordHash: generatedPasswordHash, 
       fullName: 'Admin',
       roleId: adminRole.id,
     },
     {
       email: 'user@gmail.com',
-      passwordHash: '$2b$10$EPf9kP58gS/6.L013pZ7Y.fO9WqHqE0d0G9g4q5B3mE2rGzUf.KGa',
+      passwordHash: generatedPasswordHash,
       fullName: 'User',
       roleId: userRole.id,
     },
@@ -99,7 +115,7 @@ async function main() {
     });
   }
 
-  console.log('Seed completed successfully!');
+  console.log('🚀 Seed completed successfully!');
 }
 
 main()

@@ -7,6 +7,9 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { Request } from 'express';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+@ApiTags('products')
+@ApiBearerAuth()
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) { }
@@ -20,16 +23,20 @@ export class ProductsController {
     return this.productsService.findProduct(parseInt(id));
   }
   @Post()
+  
   createproduct(@Body() body: CreateProductDTO, @Req() req: Request) {
     return this.productsService.createProduct(body, req.user);
   }
-
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Delete(':id')
   deleteproduct(@Param('id') id: string, @Req() req: Request) {
     return this.productsService.deleteProduct(parseInt(id), req.user);
   }
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
   @Patch(':id')
   updateproduct
     (@Param('id') id: string, @Body() body: UpdateProductDTO, @Req() req: Request) {

@@ -10,12 +10,17 @@ export class ProductsService {
     const products = await this.prisma.product.findMany({
       include: {
         category: true,
+        inventory: true,
       },
     });
     return products.map(product => ({
       id: product.id,
       name: product.name,
       price: product.price,
+      sku: product.sku,
+      status: product.status,
+      quantity: product.inventory?.quantity,
+      reservedQuantity: product.inventory?.reservedQuantity,
       category: product.category.name,
     }));
   }
@@ -112,6 +117,7 @@ export class ProductsService {
     const product = await this.prisma.product.findUnique({
       include: {
         category: true,
+        inventory: true,
       },
       where: { id },
     });
@@ -119,9 +125,13 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
     return {
-      id: product.id,
+     id: product.id,
       name: product.name,
       price: product.price,
+      sku: product.sku,
+      status: product.status,
+      quantity: product.inventory?.quantity,
+      reservedQuantity: product.inventory?.reservedQuantity,
       category: product.category.name,
     };
   }
