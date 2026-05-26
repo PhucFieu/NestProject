@@ -1,4 +1,4 @@
-import { Post, Body, Controller, Get, Delete, Param, Patch, Req } from '@nestjs/common';
+import { Post, Body, Controller, Get, Delete, Param, Patch, Req, ParseIntPipe } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDTO } from './dto/create-products.dto';
 import { UpdateProductDTO } from './dto/update-products.dto';
@@ -19,8 +19,8 @@ export class ProductsController {
     return this.productsService.products();
   }
   @Get(':id')
-  getproduct(@Param('id') id: string) {
-    return this.productsService.findProduct(parseInt(id));
+  getproduct(@Param('id', ParseIntPipe) id: number) {
+    return this.productsService.findProduct(id);
   }
   @Post()
   
@@ -31,15 +31,15 @@ export class ProductsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Delete(':id')
-  deleteproduct(@Param('id') id: string, @Req() req: Request) {
-    return this.productsService.deleteProduct(parseInt(id), req.user);
+  deleteproduct(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
+    return this.productsService.deleteProduct(id, req.user);
   }
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Patch(':id')
   updateproduct
-    (@Param('id') id: string, @Body() body: UpdateProductDTO, @Req() req: Request) {
-    return this.productsService.updateProduct(parseInt(id), body, req.user);
+    (@Param('id', ParseIntPipe) id: number, @Body() body: UpdateProductDTO, @Req() req: Request) {
+    return this.productsService.updateProduct(id, body, req.user);
   }
 }

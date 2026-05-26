@@ -1,7 +1,7 @@
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from '@prisma/client'; // <-- Sửa lại import chuẩn theo generator mặc định
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-import * as bcrypt from 'bcrypt'; // Đã thêm thư viện bcrypt để tự động băm mật khẩu
+import * as bcrypt from 'bcrypt';
 
 const connectionString =
   'postgresql://postgres:123456@localhost:5432/nestjs_product_db?schema=public';
@@ -16,13 +16,15 @@ const prisma = new PrismaClient({
 async function main() {
   console.log('🔄 Starting data cleanup...');
 
-  // STAGE 0: Xóa toàn bộ dữ liệu cũ (Chú ý thứ tự: bảng Con xóa trước, bảng Cha xóa sau)
+  // STAGE 0: Xóa dữ liệu cũ (Đã sửa thành order_Item chuẩn theo schema của bạn)
+  await prisma.order_Item.deleteMany({}); // Khớp với model Order_Item
+  await prisma.order.deleteMany({});     
+  await prisma.cartItem.deleteMany({});  
+  await prisma.cart.deleteMany({});      
   await prisma.auditLog.deleteMany({});
   await prisma.inventory.deleteMany({});
-  
   await prisma.product.deleteMany({});
   await prisma.user.deleteMany({});
-  
   await prisma.category.deleteMany({});
   await prisma.role.deleteMany({});
 
@@ -89,7 +91,7 @@ async function main() {
     create: { name: 'USER' },
   });
 
-  // STAGE 4: Seed Users (Tự động sinh chuỗi mã hóa chuẩn cho mật khẩu '123456')
+  // STAGE 4: Seed Users
   const generatedPasswordHash = bcrypt.hashSync('123456', 10);
 
   const usersData = [
@@ -113,6 +115,64 @@ async function main() {
       update: {},
       create: user,
     });
+  }
+
+  // STAGE 5: Seed Kho hàng (Inventory)
+  console.log('📦 Seeding inventory...');
+  const allProducts = await prisma.product.findMany();
+  for (const product of allProducts) {
+    await prisma.inventory.upsert({
+      where: { productId: product.id },
+      update: {},
+      create: {
+        productId: product.id,
+        quantity: 50,          
+        reservedQuantity: 0,   
+      },
+    });
+  }
+
+  // STAGE 6: Ném sẵn đồ vào Giỏ hàng cho tài khoản 'user@gmail.com'
+  console.log('🛒 Seeding cart and cart items for user...');
+  const targetUser = await prisma.user.findUnique({
+    where: { email: 'user@gmail.com' },
+  });
+
+  if (targetUser) {
+    const userCart = await prisma.cart.upsert({
+      where: { userId: targetUser.id },
+      update: {},
+      create: { userId: targetUser.id },
+    });
+
+    const iphone = await prisma.product.findUnique({ where: { sku: 'IP17-01' } });
+    const macbook = await prisma.product.findUnique({ where: { sku: 'MAC-M6-01' } });
+
+    if (iphone && macbook) {
+      await prisma.cartItem.upsert({
+        where: {
+          cartId_productId: { cartId: userCart.id, productId: iphone.id },
+        },
+        update: {},
+        create: {
+          cartId: userCart.id,
+          productId: iphone.id,
+          quantity: 2,
+        },
+      });
+
+      await prisma.cartItem.upsert({
+        where: {
+          cartId_productId: { cartId: userCart.id, productId: macbook.id },
+        },
+        update: {},
+        create: {
+          cartId: userCart.id,
+          productId: macbook.id,
+          quantity: 1,
+        },
+      });
+    }
   }
 
   console.log('🚀 Seed completed successfully!');

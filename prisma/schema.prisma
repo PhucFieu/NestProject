@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -15,56 +12,48 @@ model User {
   passwordHash String
   fullName     String?
   status       String   @default("ACTIVE")
-
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
   roleId       Int
   role         Role     @relation(fields: [roleId], references: [id])
-
   refreshToken String?
   cart         Cart?
+  orders       Order[]
 }
 
 model Role {
   id    Int    @id @default(autoincrement())
-  name  String @unique // Ví dụ: "ADMIN", "USER", "MANAGER"
-  
-  // Mối quan hệ 1-N: Một Role có thể gán cho nhiều User
+  name  String @unique
   users User[]
 }
 
 model Product {
-  id         Int      @id @default(autoincrement())
+  id         Int          @id @default(autoincrement())
   name       String
-  sku        String   @unique
+  sku        String       @unique
   price      Float
-  status     String   @default("ACTIVE")
-
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
+  status     String       @default("ACTIVE")
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
   categoryId Int
-  category   Category @relation(fields: [categoryId], references: [id])
-
+  category   Category     @relation(fields: [categoryId], references: [id])
   inventory  Inventory?
   cartItems  CartItem[]
+  orderItems Order_Item[]
 }
 
 model Category {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  slug      String    @unique
-  isActive  Boolean   @default(true)
-
-  products  Product[]
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  slug     String    @unique
+  isActive Boolean   @default(true)
+  products Product[]
 }
 
 model Inventory {
   id               Int      @id @default(autoincrement())
   quantity         Int      @default(0)
   reservedQuantity Int      @default(0)
-
   updatedAt        DateTime @updatedAt
   productId        Int      @unique
   product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -72,7 +61,7 @@ model Inventory {
 
 model Cart {
   id        Int        @id @default(autoincrement())
-  userId    Int        @unique // Mỗi user chỉ có 1 giỏ hàng duy nhất
+  userId    Int        @unique
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   items     CartItem[]
   createdAt DateTime   @default(now())
@@ -85,23 +74,51 @@ model CartItem {
   cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
   productId Int
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  quantity  Int      @default(1) // Số lượng sản phẩm
+  quantity  Int      @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([cartId, productId]) // Tránh việc một sản phẩm bị trùng lặp dòng trong cùng 1 giỏ hàng
+  @@unique([cartId, productId])
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  SHIPPED
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+model Order {
+  id Int @id @default(autoincrement())
+  userId      Int
+  totalAmount Float
+  status      OrderStatus  @default(PENDING)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  orderItems  Order_Item[]
+  user        User         @relation(fields: [userId], references: [id])
+}
+
+model Order_Item {
+  id Int @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  name      String
+  price     Float
+  quantity  Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
 }
 
 model AuditLog {
   id         Int      @id @default(autoincrement())
-
   actorId    Int
   action     String
-
   entityType String
   entityId   Int
-
   metadata   Json?
-
   createdAt  DateTime @default(now())
 }
